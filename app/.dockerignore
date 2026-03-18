@@ -1,0 +1,26 @@
+# Git
+.git
+.gitignore
+
+# Docker
+.dockerignore
+Dockerfile
+
+# Terraform (敏感資料，絕對不能包進去)
+../terraform/
+*.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Helm
+../helm/
+
+# CI/CD
+../.github/
+.github/
+
+# Misc
+README.md
+*.md
+.DS_Store

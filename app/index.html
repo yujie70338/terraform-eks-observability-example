@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRE Interview Project | EKS Observability</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f8fafc;
+            --text-color: #1e293b;
+            --card-bg: #ffffff;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+        }
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 1.875rem;
+        }
+        .status-badge {
+            display: inline-block;
+            background: #dcfce7;
+            color: #166534;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            text-align: left;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+        .tech-item {
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+        .tech-item::before {
+            content: "✓";
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        footer {
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>EKS 驗證頁面</h1>
+        <p>此服務已成功部署於 <strong>AWS EKS</strong> 叢集，並透過 <strong>ALB Ingress (IP Mode)</strong> 提供外部存取。</p>
+        
+        <div class="tech-stack">
+            <div class="tech-item">Terraform IaC</div>
+            <div class="tech-item">EKS Node Isolation</div>
+            <div class="tech-item">Prometheus Monitoring</div>
+            <div class="tech-item">GitHub Actions CI/CD</div>
+            <div class="tech-item">Helm Chart Managed</div>
+            <div class="tech-item">Telegram Alerting</div>
+        </div>
+
+        <footer>
+            建置環境：AWS Tokyo Region (ap-northeast-1)<br>
+            Deployment PDB Strategy: minAvailable 10%
+        </footer>
+    </div>
+</body>
+</html>
