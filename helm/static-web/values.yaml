@@ -1,0 +1,54 @@
+# ─── Image ──────────────────────────────────────────────────────────────────────
+image:
+  repository: yujie70338/static-web
+  tag: "v1.0.0"
+  pullPolicy: IfNotPresent
+
+# ─── Namespace ──────────────────────────────────────────────────────────────────
+namespace: app
+
+# ─── Replicas ───────────────────────────────────────────────────────────────────
+replicaCount: 2
+
+# ─── Container ──────────────────────────────────────────────────────────────────
+containerPort: 8080
+
+# ─── Resources ──────────────────────────────────────────────────────────────────
+resources:
+  requests:
+    cpu: 50m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi
+
+# ─── Node Scheduling (App Node Group) ──────────────────────────────────────────
+nodeSelector:
+  role: app
+
+tolerations:
+  - key: "dedicated"
+    value: "app"
+    effect: "NoSchedule"
+    operator: "Equal"
+
+# ─── Service ────────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 80
+
+# ─── Ingress (AWS ALB) ─────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /
+  host: ""
+
+# ─── PDB ────────────────────────────────────────────────────────────────────────
+pdb:
+  enabled: true
+  minAvailable: "10%"

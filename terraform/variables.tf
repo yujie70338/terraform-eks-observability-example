@@ -29,7 +29,7 @@ variable "vpc_cidr" {
 variable "eks_cluster_version" {
   description = "Kubernetes version for the EKS cluster"
   type        = string
-  default     = "1.32"
+  default     = "1.35"
 }
 
 variable "infra_node_instance_type" {

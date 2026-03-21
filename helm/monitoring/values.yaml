@@ -1,0 +1,133 @@
+# ─── kube-prometheus-stack Custom Values ────────────────────────────────────────
+# Install via:
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+#     -n monitoring --create-namespace \
+#     -f helm/monitoring/values.yaml
+
+# ─── Global: Schedule all monitoring pods on Infra nodes ────────────────────────
+global:
+  nodeSelector:
+    role: infra
+
+# ─── Prometheus ─────────────────────────────────────────────────────────────────
+prometheus:
+  prometheusSpec:
+    nodeSelector:
+      role: infra
+    tolerations:
+      - key: "dedicated"
+        value: "infra"
+        effect: "NoSchedule"
+        operator: "Equal"
+    # Use emptyDir for simplicity (no EBS persistent storage)
+    storageSpec: {}
+    retention: 1d
+
+# ─── Alertmanager ───────────────────────────────────────────────────────────────
+alertmanager:
+  alertmanagerSpec:
+    nodeSelector:
+      role: infra
+    tolerations:
+      - key: "dedicated"
+        value: "infra"
+        effect: "NoSchedule"
+        operator: "Equal"
+    storage: {}
+  # Telegram alerting configuration
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: "telegram"
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 1h
+    receivers:
+      - name: "telegram"
+        telegram_configs:
+          - bot_token: "<TELEGRAM_BOT_TOKEN>"   # set in values.secret.yaml(gitignored)
+            chat_id: 0                            # set in values.secret.yaml(gitignored)
+            parse_mode: HTML
+            message: |
+              <b>{{ .Status | toUpper }}</b>
+              <b>Alert:</b> {{ .CommonLabels.alertname }}
+              <b>Namespace:</b> {{ .CommonLabels.namespace }}
+              <b>Summary:</b> {{ .CommonAnnotations.summary }}
+
+# ─── Grafana ────────────────────────────────────────────────────────────────────
+grafana:
+  nodeSelector:
+    role: infra
+  tolerations:
+    - key: "dedicated"
+      value: "infra"
+      effect: "NoSchedule"
+      operator: "Equal"
+  # Expose Grafana via ALB Ingress
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+      alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    path: /
+    pathType: Prefix
+  # Default admin credentials (change in production)
+  adminUser: admin
+  adminPassword: admin
+
+# ─── Operator ───────────────────────────────────────────────────────────────────
+prometheusOperator:
+  nodeSelector:
+    role: infra
+  tolerations:
+    - key: "dedicated"
+      value: "infra"
+      effect: "NoSchedule"
+      operator: "Equal"
+  # Admission webhook pods also need tolerations
+  admissionWebhooks:
+    patch:
+      nodeSelector:
+        role: infra
+      tolerations:
+        - key: "dedicated"
+          value: "infra"
+          effect: "NoSchedule"
+          operator: "Equal"
+    create:
+      nodeSelector:
+        role: infra
+      tolerations:
+        - key: "dedicated"
+          value: "infra"
+          effect: "NoSchedule"
+          operator: "Equal"
+
+# ─── Kube State Metrics ────────────────────────────────────────────────────────
+kube-state-metrics:
+  nodeSelector:
+    role: infra
+  tolerations:
+    - key: "dedicated"
+      value: "infra"
+      effect: "NoSchedule"
+      operator: "Equal"
+
+# ─── Prometheus Node Exporter ───────────────────────────────────────────────────
+# Node exporter is a DaemonSet that must run on ALL nodes, so we tolerate both taints
+prometheus-node-exporter:
+  tolerations:
+    - key: "dedicated"
+      value: "infra"
+      effect: "NoSchedule"
+      operator: "Equal"
+    - key: "dedicated"
+      value: "app"
+      effect: "NoSchedule"
+      operator: "Equal"

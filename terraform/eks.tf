@@ -22,6 +22,19 @@ module "eks" {
   cluster_addons = {
     coredns = {
       most_recent = true
+      configuration_values = jsonencode({
+        tolerations = [
+          {
+            key      = "dedicated"
+            value    = "infra"
+            effect   = "NoSchedule"
+            operator = "Equal"
+          }
+        ]
+        nodeSelector = {
+          role = "infra"
+        }
+      })
     }
     kube-proxy = {
       most_recent = true

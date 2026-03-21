@@ -36,6 +36,9 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Helm secret values (contain sensitive credentials)
+*.secret.yaml
+
 # macOS
 .DS_Store
 

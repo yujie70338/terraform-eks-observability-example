@@ -1,0 +1,20 @@
+clusterName: eks-obs-dev
+
+# Automatically create the 'alb' IngressClass resource
+createIngressClassResource: true
+
+serviceAccount:
+  create: true
+  name: aws-load-balancer-controller
+  annotations:
+    eks.amazonaws.com/role-arn: ""  # Filled at install time via --set
+
+# Schedule on infra nodes
+nodeSelector:
+  role: infra
+
+tolerations:
+  - key: "dedicated"
+    value: "infra"
+    effect: "NoSchedule"
+    operator: "Equal"
