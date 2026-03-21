@@ -14,6 +14,5 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.12"
     }
-    # tls provider removed: OIDC is handled by the EKS module (enable_irsa = true)
   }
 }
