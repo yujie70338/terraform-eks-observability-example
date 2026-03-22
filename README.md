@@ -69,7 +69,7 @@ Internet
 | 類別 | 工具 |
 |------|------|
 | 基礎設施 | Terraform >= 1.5、AWS Provider ~> 5.40 |
-| 容器平台 | Amazon EKS v1.32 |
+| 容器平台 | Amazon EKS v1.35 |
 | 流量調度 | AWS Load Balancer Controller（ALB IP Mode）|
 | 應用容器 | nginx:alpine、multi-platform image（amd64/arm64）|
 | 監控 | kube-prometheus-stack（Prometheus + Grafana + Alertmanager）|
@@ -84,7 +84,8 @@ Internet
 .
 ├── .github/
 │   └── workflows/
-│       └── terraform.yml   # CI/CD: Lint → Security Scan → Plan → Apply
+│       ├── terraform.yml   # CI/CD: Lint → Security Scan → Plan → Apply
+│       └── app-helm.yml    # CI/CD: Hadolint → Trivy 掃描 → Build & Push → Helm Deploy
 ├── app/
 │   ├── Dockerfile          # 多平台 multi-stage build，非 Root 安全設定
 │   └── index.html          # 靜態網頁原始碼
@@ -105,13 +106,13 @@ Internet
 ├── terraform/
 │   ├── versions.tf         # Provider 版本鎖定
 │   ├── providers.tf        # AWS / K8s / Helm Provider
-│   ├── backend.tf          # S3 Remote State（預留，本次建置 .tfstate 存在地端）
+│   ├── backend.tf          # S3 Remote State + Native Locking（Terraform >= 1.11，不需 DynamoDB）
 │   ├── variables.tf        # 變數定義
 │   ├── locals.tf           # cluster_name、common_tags、Subnet CIDR
 │   ├── data.tf             # 動態資料（AZs）
 │   ├── vpc.tf              # 3 Public + 3 Private Subnets、單 NAT
 │   ├── eks.tf              # EKS v1.32、CoreDNS Tolerations、Node Groups
-│   ├── irsa.tf             # ALB Controller + Prometheus IRSA
+│   ├── irsa.tf             # ALB Controller IRSA
 │   ├── oidc-github.tf      # GitHub Actions OIDC Provider + IAM Role
 │   ├── outputs.tf          # 環境資訊的 output 輸出
 │   └── policies/
@@ -233,7 +234,7 @@ terraform destroy
 
 ### 架構
 
-GitHub Actions 透過 **OIDC (OpenID Connect)** 向 AWS 取得臨時憑證，無需在 GitHub 儲存 AWS Access Key。
+GitHub Actions 透過 **OIDC (OpenID Connect)** 向 AWS 取得臨時憑證，無需在 GitHub 儲存 AWS Access Key。本專案實作兩條獨立 Pipeline：
 
 ```
 GitHub Actions
@@ -242,17 +243,30 @@ GitHub Actions
 AWS STS  ──→  AssumeRoleWithWebIdentity
     │
     ▼  Temporary Credentials
-Terraform Plan / Apply
+Terraform / kubectl / helm
 ```
 
-### Pipeline 流程
+### Terraform Pipeline（`.github/workflows/terraform.yml`）
 
-| Stage | 觸發條件 | 說明 |
-|-------|----------|------|
-| **Lint & Validate** | PR / Push to main | `terraform fmt -check` + `terraform validate` |
-| **Security Scan** | PR / Push to main | Checkov 靜態安全掃描（soft fail） |
-| **Terraform Plan** | PR / Push to main | 產生 Plan 並自動回覆 PR Comment |
-| **Terraform Apply** | Push to main only | 需通過 `production` environment 審核 |
+觸發條件：`terraform/**` 變動
+
+| Stage | 說明 |
+|-------|------|
+| **Lint & Validate** | `terraform fmt -check` + `terraform validate` |
+| **Security Scan** | Checkov 靜態安全掃描（soft fail） |
+| **Plan** | 產生 Plan 並自動回覆 PR Comment |
+| **Apply** | （僅 main push）自動套用基礎設施變更 |
+
+### App & Helm Pipeline（`.github/workflows/app-helm.yml`）
+
+觸發條件：`app/**` 或 `helm/static-web/**` 變動
+
+| Stage | 說明 |
+|-------|------|
+| **Lint & Validate** | Hadolint（Dockerfile）+ Helm lint + template dry-run |
+| **Build & Scan** | Docker buildx（amd64）+ Trivy 漏洞掃描 |
+| **Push** | （僅 main push）multi-platform push to DockerHub，tag 為 git SHA 前 7 碼 |
+| **Deploy** | （僅 main push）`helm upgrade --install` + rollout 驗證 |
 
 ### 設定步驟
 
