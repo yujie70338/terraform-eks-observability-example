@@ -18,6 +18,7 @@ permissions:
 env:
   TF_WORKING_DIR: terraform
   AWS_REGION: ap-northeast-1
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ─── Stage 1: Lint & Validate ─────────────────────────────────────────────────
