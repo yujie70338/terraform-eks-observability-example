@@ -15,6 +15,7 @@
 - [驗收指令](#驗收指令)
 - [成果截圖](#成果截圖)
 - [資源回收](#資源回收)
+- [CI/CD 自動化](#cicd-自動化)
 
 ---
 
@@ -73,7 +74,7 @@ Internet
 | 應用容器 | nginx:alpine、multi-platform image（amd64/arm64）|
 | 監控 | kube-prometheus-stack（Prometheus + Grafana + Alertmanager）|
 | 告警 | Alertmanager + Telegram Bot |
-| CI/CD | GitHub Actions |
+| CI/CD | GitHub Actions + OIDC（無需長效金鑰）|
 
 ---
 
@@ -81,6 +82,9 @@ Internet
 
 ```
 .
+├── .github/
+│   └── workflows/
+│       └── terraform.yml   # CI/CD: Lint → Security Scan → Plan → Apply
 ├── app/
 │   ├── Dockerfile          # 多平台 multi-stage build，非 Root 安全設定
 │   └── index.html          # 靜態網頁原始碼
@@ -108,6 +112,7 @@ Internet
 │   ├── vpc.tf              # 3 Public + 3 Private Subnets、單 NAT
 │   ├── eks.tf              # EKS v1.32、CoreDNS Tolerations、Node Groups
 │   ├── irsa.tf             # ALB Controller + Prometheus IRSA
+│   ├── oidc-github.tf      # GitHub Actions OIDC Provider + IAM Role
 │   ├── outputs.tf          # 環境資訊的 output 輸出
 │   └── policies/
 │       └── alb-controller-policy.json
@@ -221,4 +226,73 @@ helm uninstall aws-load-balancer-controller -n kube-system
 cd terraform/
 terraform destroy
 ```
+
+---
+
+## CI/CD 自動化
+
+### 架構
+
+GitHub Actions 透過 **OIDC (OpenID Connect)** 向 AWS 取得臨時憑證，無需在 GitHub 儲存 AWS Access Key。
+
+```
+GitHub Actions
+    │
+    ▼  OIDC Token
+AWS STS  ──→  AssumeRoleWithWebIdentity
+    │
+    ▼  Temporary Credentials
+Terraform Plan / Apply
+```
+
+### Pipeline 流程
+
+| Stage | 觸發條件 | 說明 |
+|-------|----------|------|
+| **Lint & Validate** | PR / Push to main | `terraform fmt -check` + `terraform validate` |
+| **Security Scan** | PR / Push to main | Checkov 靜態安全掃描（soft fail） |
+| **Terraform Plan** | PR / Push to main | 產生 Plan 並自動回覆 PR Comment |
+| **Terraform Apply** | Push to main only | 需通過 `production` environment 審核 |
+
+### 設定步驟
+
+#### 1. 建立 OIDC 基礎設施
+
+OIDC Provider 與 IAM Role 已定義在 `terraform/oidc-github.tf`。首次部署需從本機執行：
+
+```bash
+cd terraform/
+terraform init
+terraform apply
+```
+
+取得 Role ARN：
+
+```bash
+terraform output -raw github_actions_role_arn
+```
+
+#### 2. 設定 GitHub Secrets
+
+前往 GitHub Repo → **Settings** → **Secrets and variables** → **Actions**，新增：
+
+| Secret | 值 |
+|--------|-----|
+| `AWS_ROLE_ARN` | 上一步 `terraform output` 的 ARN |
+
+#### 3. 設定 GitHub Environment（選用）
+
+若需手動審核 Apply：
+
+1. 前往 **Settings** → **Environments**
+2. 建立名為 `production` 的 environment
+3. 啟用 **Required reviewers** 並指定審核者
+
+> 若不需審核，移除 workflow 中 `apply` job 的 `environment: production` 行即可。
+
+### 安全設計
+
+- **OIDC 信任限縮**：IAM Role 僅信任本 repo（`repo:yujiezheng/terraform-eks-observability-example:*`）
+- **無長效金鑰**：每次 workflow 執行僅取得臨時 token，自動過期
+- **最小權限建議**：目前 Role 使用 `AdministratorAccess` 供開發便利，正式環境建議改用自訂 Policy 限縮權限
 

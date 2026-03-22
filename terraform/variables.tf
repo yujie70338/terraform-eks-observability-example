@@ -87,3 +87,10 @@ variable "allowed_cidr_blocks" {
   type        = list(string)
   default     = ["0.0.0.0/0"] # TODO: replace with your own IP e.g. ["1.2.3.4/32"]
 }
+
+# ─── GitHub Actions OIDC ────────────────────────────────────────────────────────
+
+variable "github_repo" {
+  description = "GitHub repository in format 'owner/repo' for OIDC trust"
+  type        = string
+}
