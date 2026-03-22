@@ -13,7 +13,7 @@ on:
       - 'helm/static-web/**'
 
 permissions:
-  id-token: write    # Required for OIDC
+  id-token: write
   contents: read
   pull-requests: write
 
@@ -23,27 +23,26 @@ env:
   IMAGE_REPO: yujie70338/static-web
   HELM_RELEASE: static-web
   HELM_NAMESPACE: app
+  # 2026 年 6 月前的過渡期強制使用 Node 24
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # ─── Stage 1: Lint & Validate ─────────────────────────────────────────────────
+  # Stage 1: Lint & Validate
   lint:
     name: Lint & Validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4 # 確保為 v4 以上
 
-      # ── Dockerfile lint ──
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: app/Dockerfile
           failure-threshold: warning
 
-      # ── Helm lint ──
       - name: Setup Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v4.2.0 # 升級到最新小版本
 
       - name: Helm Lint
         run: helm lint helm/static-web/
@@ -51,7 +50,7 @@ jobs:
       - name: Helm Template (dry-run)
         run: helm template static-web helm/static-web/ --namespace app
 
-  # ─── Stage 2: Build & Security Scan ───────────────────────────────────────────
+  # Stage 2: Build & Security Scan
   build:
     name: Build & Scan
     runs-on: ubuntu-latest
@@ -90,17 +89,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ── Image Security Scan (scan local build) ──
+      # Image Security Scan
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           image-ref: ${{ env.IMAGE_REPO }}:${{ steps.short_sha.outputs.value }}
           format: table
-          exit-code: '0'          # Don't block, show warnings
+          exit-code: '0'
           severity: CRITICAL,HIGH
           ignore-unfixed: true
 
-  # ─── Stage 3: Deploy to EKS (main only) ──────────────────────────────────────
+  # Stage 3: Deploy to EKS (main only)
   deploy:
     name: Deploy to EKS
     runs-on: ubuntu-latest
@@ -125,16 +124,14 @@ jobs:
         run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
 
       - name: Setup Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v4.2.0
 
       - name: Determine image tag
         id: tag
         run: |
           if [[ "${{ needs.build.outputs.image_tag }}" != "" ]]; then
-            # app/ changed → use new git SHA tag
             echo "value=${{ needs.build.outputs.image_tag }}" >> "$GITHUB_OUTPUT"
           else
-            # helm-only change → use tag from values.yaml
             TAG=$(grep 'tag:' helm/static-web/values.yaml | awk '{print $2}' | tr -d '"')
             echo "value=$TAG" >> "$GITHUB_OUTPUT"
           fi
@@ -153,9 +150,9 @@ jobs:
           kubectl rollout status deployment/${{ env.HELM_RELEASE }} \
             -n ${{ env.HELM_NAMESPACE }} \
             --timeout=120s
-          echo "─── Pod Status ───"
+          echo "--- Pod Status ---"
           kubectl get pods -n ${{ env.HELM_NAMESPACE }} -o wide
-          echo "─── Ingress ───"
+          echo "--- Ingress ---"
           kubectl get ingress -n ${{ env.HELM_NAMESPACE }}
 
       - name: Comment Deploy Result
@@ -163,7 +160,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const status = '${{ job.status }}' === 'success' ? '✅' : '❌';
+            const status = '${{ job.status }}' === 'success' ? 'Success' : 'Failed';
             const tag = '${{ steps.tag.outputs.value }}';
             const body = `### Deploy ${status}\n- **Image:** \`${{ env.IMAGE_REPO }}:${tag}\`\n- **Cluster:** \`${{ env.EKS_CLUSTER_NAME }}\`\n- **Namespace:** \`${{ env.HELM_NAMESPACE }}\``;
 
