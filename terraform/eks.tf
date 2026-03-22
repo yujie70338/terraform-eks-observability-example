@@ -128,8 +128,25 @@ module "eks" {
 
   # Grant IAM admin user permanent kubectl access via EKS Access Entries API
   access_entries = {
+    # GitHub Actions OIDC role - for CI/CD pipeline
+    cluster_creator = {
+      kubernetes_groups = []
+      principal_arn     = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.cluster_name}-github-actions"
+
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+
+    # IAM admin user - for local kubectl access
     admin_user = {
-      principal_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/admin"
+      kubernetes_groups = []
+      principal_arn     = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/admin"
 
       policy_associations = {
         cluster_admin = {
