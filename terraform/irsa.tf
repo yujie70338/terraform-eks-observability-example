@@ -66,7 +66,7 @@ data "aws_iam_policy_document" "prometheus_assume" {
       variable = "${module.eks.oidc_provider}:sub"
       # kube-prometheus-stack default: namespace=monitoring, SA=<release>-kube-prometheus-stack-prometheus
       # Adjust <release-name> to match your Helm release name
-      values   = ["system:serviceaccount:monitoring:kube-prometheus-stack-prometheus"]
+      values = ["system:serviceaccount:monitoring:kube-prometheus-stack-prometheus"]
     }
   }
 }
