@@ -77,19 +77,18 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push
+      # Step 1: Build single-platform image locally for Trivy scanning
+      - name: Build (local, amd64 only) for scanning
         uses: docker/build-push-action@v6
         with:
           context: app/
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          tags: |
-            ${{ env.IMAGE_REPO }}:${{ steps.short_sha.outputs.value }}
-            ${{ env.IMAGE_REPO }}:latest
+          platforms: linux/amd64
+          load: true
+          tags: ${{ env.IMAGE_REPO }}:${{ steps.short_sha.outputs.value }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Image Security Scan
+      # Image Security Scan (uses locally loaded image above)
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.35.0
         with:
@@ -98,6 +97,20 @@ jobs:
           exit-code: '0'
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+
+      # Step 2: Build multi-platform and push to DockerHub (main only)
+      - name: Build and Push (multi-platform)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: app/
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE_REPO }}:${{ steps.short_sha.outputs.value }}
+            ${{ env.IMAGE_REPO }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # Stage 3: Deploy to EKS (main only)
   deploy:
