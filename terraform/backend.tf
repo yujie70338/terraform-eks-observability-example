@@ -1,16 +1,19 @@
-# ─── S3 Remote State Backend (uncomment when S3 bucket is ready) ─────────────
-#
-# terraform {
-#   backend "s3" {
-#     bucket         = "<BUCKET_NAME>"
-#     key            = "eks-obs/terraform.tfstate"
-#     region         = "ap-northeast-1"
-#     dynamodb_table = "<LOCK_TABLE>"
-#     encrypt        = true
-#   }
-# }
+# ─── S3 Remote State Backend with Native Locking ─────────────────────────────
+# Requires Terraform >= 1.11.0. No DynamoDB needed.
 #
 # Prerequisites:
-#   1. Create an S3 bucket with versioning enabled
-#   2. Create a DynamoDB table with partition key "LockID" (String)
-#   3. Replace the placeholder values above and uncomment the block
+#   1. Create S3 bucket: aws s3api create-bucket --bucket eks-obs-tfstate-760033296418 \
+#        --region ap-northeast-1 --create-bucket-configuration LocationConstraint=ap-northeast-1
+#   2. Enable versioning: aws s3api put-bucket-versioning \
+#        --bucket eks-obs-tfstate-760033296418 --versioning-configuration Status=Enabled
+#   3. Run: terraform init -migrate-state
+
+terraform {
+  backend "s3" {
+    bucket       = "eks-obs-tfstate-760033296418"
+    key          = "eks-obs/terraform.tfstate"
+    region       = "ap-northeast-1"
+    use_lockfile = true
+    encrypt      = true
+  }
+}
