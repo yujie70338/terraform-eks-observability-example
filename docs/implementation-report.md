@@ -186,6 +186,14 @@ image:
 
 replicaCount: 2
 
+resources:
+  requests:
+    cpu: 50m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi
+
 nodeSelector:
   role: app                   # 只調度到 App Node Group
 
